@@ -1,0 +1,228 @@
+from pathlib import Path
+from flask import Flask, request, redirect, url_for, render_template_string, flash
+from werkzeug.utils import secure_filename
+import os
+import re
+import shutil
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "change-this-secret-key")
+
+PROPOSAL_ROOT = Path("/var/www/proposal")
+ALLOWED_EXTENSIONS = {"html", "htm"}
+
+HTML = """
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>提案書管理</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            background: #f4f6f8;
+            color: #222;
+        }
+        .wrap {
+            width: min(1000px, 92%);
+            margin: 40px auto;
+        }
+        h1 { margin-bottom: 8px; }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 3px 14px rgba(0,0,0,.08);
+        }
+        label {
+            display: block;
+            font-weight: 700;
+            margin-top: 14px;
+            margin-bottom: 6px;
+        }
+        input[type=text], input[type=file] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 11px;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+        }
+        button {
+            margin-top: 18px;
+            background: #111827;
+            color: white;
+            border: 0;
+            border-radius: 8px;
+            padding: 11px 18px;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            padding: 12px 8px;
+            vertical-align: middle;
+        }
+        a { color: #0a58ca; }
+        .danger {
+            background: #b91c1c;
+            padding: 8px 12px;
+            margin: 0;
+        }
+        .flash {
+            padding: 12px;
+            border-radius: 8px;
+            background: #dcfce7;
+            margin-bottom: 16px;
+        }
+        .note {
+            color: #555;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>提案書管理</h1>
+    <p class="note">HTML提案書をアップロードすると、公開URLが自動作成されます。</p>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flash">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <h2>新規登録・上書き</h2>
+        <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+            <label>顧客名</label>
+            <input type="text" name="customer_name" placeholder="株式会社タスク" required>
+
+            <label>URL用英数字</label>
+            <input type="text" name="slug" placeholder="task" required>
+
+            <label>HTMLファイル</label>
+            <input type="file" name="file" accept=".html,.htm" required>
+
+            <button type="submit">アップロード</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>公開中の提案書</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>URL名</th>
+                    <th>公開URL</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in proposals %}
+                <tr>
+                    <td>{{ item }}</td>
+                    <td>
+                        <a href="https://proposal.sora-nextai.com/{{ item }}/" target="_blank">
+                            https://proposal.sora-nextai.com/{{ item }}/
+                        </a>
+                    </td>
+                    <td>
+                        <form method="post" action="{{ url_for('delete', slug=item) }}"
+                              onsubmit="return confirm('削除しますか？');">
+                            <button class="danger" type="submit">削除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3">提案書はありません。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
+"""
+
+def valid_slug(slug: str) -> bool:
+    return bool(re.fullmatch(r"[a-z0-9][a-z0-9-]{0,49}", slug))
+
+def allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def list_proposals():
+    if not PROPOSAL_ROOT.exists():
+        return []
+    result = []
+    for path in PROPOSAL_ROOT.iterdir():
+        if path.is_dir() and (path / "index.html").exists():
+            result.append(path.name)
+    return sorted(result)
+
+@app.get("/")
+def index():
+    return render_template_string(HTML, proposals=list_proposals())
+
+@app.post("/upload")
+def upload():
+    customer_name = request.form.get("customer_name", "").strip()
+    slug = request.form.get("slug", "").strip().lower()
+    uploaded = request.files.get("file")
+
+    if not customer_name:
+        flash("顧客名を入力してください。")
+        return redirect(url_for("index"))
+
+    if not valid_slug(slug):
+        flash("URL用英数字は、小文字英数字とハイフンのみで入力してください。")
+        return redirect(url_for("index"))
+
+    if not uploaded or not uploaded.filename:
+        flash("HTMLファイルを選択してください。")
+        return redirect(url_for("index"))
+
+    if not allowed_file(uploaded.filename):
+        flash("HTMLファイルだけアップロードできます。")
+        return redirect(url_for("index"))
+
+    target_dir = PROPOSAL_ROOT / slug
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    target_file = target_dir / "index.html"
+    uploaded.save(target_file)
+
+    os.chown(target_dir, 33, 33)
+    os.chown(target_file, 33, 33)
+    os.chmod(target_dir, 0o755)
+    os.chmod(target_file, 0o644)
+
+    flash(f"{customer_name}様の提案書を公開しました。")
+    return redirect(url_for("index"))
+
+@app.post("/delete/<slug>")
+def delete(slug):
+    if not valid_slug(slug):
+        flash("不正なURL名です。")
+        return redirect(url_for("index"))
+
+    target_dir = PROPOSAL_ROOT / slug
+
+    if target_dir.exists() and target_dir.is_dir():
+        shutil.rmtree(target_dir)
+        flash(f"{slug} を削除しました。")
+    else:
+        flash("対象が見つかりません。")
+
+    return redirect(url_for("index"))
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000)
