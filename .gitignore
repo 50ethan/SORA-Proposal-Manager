@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 proposal_manager.db
 .env
+app.py.bak
+app_old.py
