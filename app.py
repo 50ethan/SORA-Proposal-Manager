@@ -11,18 +11,15 @@ import sqlite3
 import string
 
 app = Flask(__name__)
-app.secret_key = os.environ.get(
-    "SECRET_KEY",
-    "sora-proposal-manager-change-this-secret-key"
-)
+app.secret_key = os.environ["SECRET_KEY"]
 
 BASE_DIR = Path("/opt/proposal-manager")
 DATABASE_PATH = BASE_DIR / "proposal_manager.db"
 PROPOSAL_ROOT = Path("/var/www/proposal")
 ALLOWED_EXTENSIONS = {"html", "htm"}
 
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Sora2026!Admin")
+ADMIN_USERNAME = os.environ["ADMIN_USERNAME"]
+ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
 
 
 def login_required(view):
