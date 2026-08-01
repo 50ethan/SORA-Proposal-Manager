@@ -1,7 +1,7 @@
 from pathlib import Path
 from datetime import datetime
 from functools import wraps
-from flask import Flask, request, redirect, render_template_string, flash, session
+from flask import Flask, request, redirect, render_template, render_template_string, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import re
@@ -31,98 +31,6 @@ def login_required(view):
     return wrapped_view
 
 
-LOGIN_HTML = """
-<!doctype html>
-<html lang="ja">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>管理者ログイン | SORA Proposal Manager</title>
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            background: linear-gradient(135deg, #0f172a, #1d4ed8);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            color: #111827;
-        }
-        .login-card {
-            width: min(420px, 92%);
-            background: white;
-            border-radius: 18px;
-            padding: 32px;
-            box-shadow: 0 24px 60px rgba(0,0,0,.28);
-        }
-        h1 {
-            margin: 0 0 8px;
-            font-size: 25px;
-        }
-        .sub {
-            margin: 0 0 24px;
-            color: #6b7280;
-        }
-        label {
-            display: block;
-            margin: 16px 0 6px;
-            font-weight: 700;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 9px;
-            font-size: 16px;
-        }
-        button {
-            width: 100%;
-            margin-top: 22px;
-            padding: 12px;
-            border: 0;
-            border-radius: 9px;
-            background: #111827;
-            color: white;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .error {
-            padding: 12px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-            background: #fee2e2;
-            color: #991b1b;
-        }
-    </style>
-</head>
-<body>
-    <main class="login-card">
-        <h1>SORA Proposal Manager</h1>
-        <p class="sub">管理者ログイン</p>
-
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="error">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <form method="post">
-            <label>ユーザー名</label>
-            <input type="text" name="username" autocomplete="username" required>
-
-            <label>パスワード</label>
-            <input type="password" name="password" autocomplete="current-password" required>
-
-            <button type="submit">ログイン</button>
-        </form>
-    </main>
-</body>
-</html>
-"""
 
 
 
@@ -1136,7 +1044,7 @@ def admin_login():
 
         flash("ユーザー名またはパスワードが違います。")
 
-    return render_template_string(LOGIN_HTML)
+    return render_template("admin_login.html")
 
 
 @app.get("/logout")
