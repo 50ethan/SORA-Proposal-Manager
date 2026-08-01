@@ -44,127 +44,6 @@ def client_login_required(view):
     return wrapped_view
 
 
-CLIENT_LOGIN_HTML = """
-<!doctype html>
-<html lang="ja">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>提案書ログイン | SORA Proposal Manager</title>
-    <style>
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            padding: 20px;
-            background: linear-gradient(135deg, #111827, #1d4ed8);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        }
-
-        .card {
-            width: min(430px, 100%);
-            padding: 32px;
-            background: #fff;
-            border-radius: 18px;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, .3);
-        }
-
-        .brand {
-            margin-bottom: 6px;
-            font-size: 13px;
-            font-weight: 800;
-            letter-spacing: .12em;
-            color: #2563eb;
-        }
-
-        h1 {
-            margin: 0 0 8px;
-            font-size: 26px;
-        }
-
-        .description {
-            margin: 0 0 24px;
-            color: #6b7280;
-        }
-
-        label {
-            display: block;
-            margin: 16px 0 6px;
-            font-weight: 700;
-        }
-
-        input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 9px;
-            font-size: 16px;
-        }
-
-        button {
-            width: 100%;
-            margin-top: 22px;
-            padding: 13px;
-            border: 0;
-            border-radius: 9px;
-            background: #111827;
-            color: #fff;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .error {
-            margin-bottom: 16px;
-            padding: 12px;
-            border-radius: 8px;
-            background: #fee2e2;
-            color: #991b1b;
-        }
-    </style>
-</head>
-<body>
-    <main class="card">
-        <div class="brand">SORA-NEXTAI</div>
-        <h1>提案書ログイン</h1>
-        <p class="description">
-            発行されたログインIDとパスワードを入力してください。
-        </p>
-
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="error">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <form method="post">
-            <label>ログインID</label>
-            <input
-                type="text"
-                name="login_id"
-                autocomplete="username"
-                required
-            >
-
-            <label>パスワード</label>
-            <input
-                type="password"
-                name="password"
-                autocomplete="current-password"
-                required
-            >
-
-            <button type="submit">提案書を開く</button>
-        </form>
-    </main>
-</body>
-</html>
-"""
 
 
 def admin_redirect(path=""):
@@ -954,7 +833,7 @@ def client_login():
 
         flash("ログインIDまたはパスワードが違います。")
 
-    return render_template_string(CLIENT_LOGIN_HTML)
+    return render_template("client_login.html")
 
 
 @app.get("/client/proposal")
