@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import datetime
-from flask import Flask, request, redirect, render_template_string, flash
+from functools import wraps
+from flask import Flask, request, redirect, render_template_string, flash, session
 from werkzeug.security import generate_password_hash
 import os
 import re
@@ -19,6 +20,113 @@ BASE_DIR = Path("/opt/proposal-manager")
 DATABASE_PATH = BASE_DIR / "proposal_manager.db"
 PROPOSAL_ROOT = Path("/var/www/proposal")
 ALLOWED_EXTENSIONS = {"html", "htm"}
+
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Sora2026!Admin")
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if not session.get("admin_logged_in"):
+            return redirect("/admin/login")
+        return view(*args, **kwargs)
+    return wrapped_view
+
+
+LOGIN_HTML = """
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>管理者ログイン | SORA Proposal Manager</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, #0f172a, #1d4ed8);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #111827;
+        }
+        .login-card {
+            width: min(420px, 92%);
+            background: white;
+            border-radius: 18px;
+            padding: 32px;
+            box-shadow: 0 24px 60px rgba(0,0,0,.28);
+        }
+        h1 {
+            margin: 0 0 8px;
+            font-size: 25px;
+        }
+        .sub {
+            margin: 0 0 24px;
+            color: #6b7280;
+        }
+        label {
+            display: block;
+            margin: 16px 0 6px;
+            font-weight: 700;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            margin-top: 22px;
+            padding: 12px;
+            border: 0;
+            border-radius: 9px;
+            background: #111827;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .error {
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <main class="login-card">
+        <h1>SORA Proposal Manager</h1>
+        <p class="sub">管理者ログイン</p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="error">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="post">
+            <label>ユーザー名</label>
+            <input type="text" name="username" autocomplete="username" required>
+
+            <label>パスワード</label>
+            <input type="password" name="password" autocomplete="current-password" required>
+
+            <button type="submit">ログイン</button>
+        </form>
+    </main>
+</body>
+</html>
+"""
+
 
 
 def admin_redirect(path=""):
@@ -476,7 +584,30 @@ HTML = """
 """
 
 
+
+@app.route("/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session["admin_logged_in"] = True
+            return redirect("/admin/")
+
+        flash("ユーザー名またはパスワードが違います。")
+
+    return render_template_string(LOGIN_HTML)
+
+
+@app.get("/logout")
+def admin_logout():
+    session.clear()
+    return redirect("/admin/login")
+
+
 @app.get("/")
+@login_required
 def index():
     return render_template_string(
         HTML,
@@ -485,6 +616,7 @@ def index():
 
 
 @app.post("/client/add")
+@login_required
 def add_client():
     company_name = request.form.get("company_name", "").strip()
     contact_name = request.form.get("contact_name", "").strip()
@@ -550,6 +682,7 @@ def add_client():
 
 
 @app.post("/upload")
+@login_required
 def upload():
     client_id = request.form.get("client_id", "").strip()
     uploaded = request.files.get("file")
@@ -632,6 +765,7 @@ def upload():
 
 
 @app.post("/client/<int:client_id>/reset-password")
+@login_required
 def reset_password(client_id):
     temporary_password = generate_password()
 
@@ -669,6 +803,7 @@ def reset_password(client_id):
 
 
 @app.post("/client/<int:client_id>/delete")
+@login_required
 def delete_client(client_id):
     with get_db() as db:
         client = db.execute(
