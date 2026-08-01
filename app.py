@@ -2,7 +2,7 @@ from pathlib import Path
 from datetime import datetime
 from functools import wraps
 from flask import Flask, request, redirect, render_template_string, flash, session
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import re
 import secrets
@@ -124,6 +124,139 @@ LOGIN_HTML = """
 </html>
 """
 
+
+
+
+def client_login_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if not session.get("client_id"):
+            return redirect("/client/login")
+        return view(*args, **kwargs)
+    return wrapped_view
+
+
+CLIENT_LOGIN_HTML = """
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>提案書ログイン | SORA Proposal Manager</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #111827, #1d4ed8);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .card {
+            width: min(430px, 100%);
+            padding: 32px;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, .3);
+        }
+
+        .brand {
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: .12em;
+            color: #2563eb;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 26px;
+        }
+
+        .description {
+            margin: 0 0 24px;
+            color: #6b7280;
+        }
+
+        label {
+            display: block;
+            margin: 16px 0 6px;
+            font-weight: 700;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 9px;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 22px;
+            padding: 13px;
+            border: 0;
+            border-radius: 9px;
+            background: #111827;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .error {
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <div class="brand">SORA-NEXTAI</div>
+        <h1>提案書ログイン</h1>
+        <p class="description">
+            発行されたログインIDとパスワードを入力してください。
+        </p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="error">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="post">
+            <label>ログインID</label>
+            <input
+                type="text"
+                name="login_id"
+                autocomplete="username"
+                required
+            >
+
+            <label>パスワード</label>
+            <input
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                required
+            >
+
+            <button type="submit">提案書を開く</button>
+        </form>
+    </main>
+</body>
+</html>
+"""
 
 
 def admin_redirect(path=""):
@@ -580,6 +713,105 @@ HTML = """
 </html>
 """
 
+
+
+
+@app.route("/client/login", methods=["GET", "POST"])
+def client_login():
+    if request.method == "POST":
+        login_id = request.form.get("login_id", "").strip()
+        password = request.form.get("password", "")
+
+        with get_db() as db:
+            client = db.execute(
+                "SELECT * FROM clients WHERE login_id = ?",
+                (login_id,)
+            ).fetchone()
+
+        if client and check_password_hash(client["password_hash"], password):
+            session.clear()
+            session["client_id"] = client["id"]
+            session["client_company_name"] = client["company_name"]
+            return redirect("/client/proposal")
+
+        flash("ログインIDまたはパスワードが違います。")
+
+    return render_template_string(CLIENT_LOGIN_HTML)
+
+
+@app.get("/client/proposal")
+@client_login_required
+def client_proposal():
+    client_id = session.get("client_id")
+
+    with get_db() as db:
+        client = db.execute(
+            "SELECT * FROM clients WHERE id = ?",
+            (client_id,)
+        ).fetchone()
+
+        proposal = db.execute(
+            "SELECT * FROM proposals WHERE client_id = ?",
+            (client_id,)
+        ).fetchone()
+
+    if not client:
+        session.clear()
+        return redirect("/client/login")
+
+    if not proposal:
+        return (
+            "<h1>提案書は現在準備中です。</h1>"
+            "<p>担当者からの連絡をお待ちください。</p>",
+            404
+        )
+
+    forwarded_for = request.headers.get("X-Forwarded-For", "")
+    ip_address = (
+        forwarded_for.split(",")[0].strip()
+        if forwarded_for
+        else request.remote_addr
+    )
+    user_agent = request.headers.get("User-Agent", "")[:500]
+
+    with get_db() as db:
+        db.execute(
+            """
+            INSERT INTO proposal_views (
+                client_id,
+                proposal_id,
+                viewed_at,
+                ip_address,
+                user_agent
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                client_id,
+                proposal["id"],
+                datetime.now().isoformat(timespec="seconds"),
+                ip_address,
+                user_agent
+            )
+        )
+        db.commit()
+
+    html_path = Path(proposal["html_path"])
+
+    if not html_path.exists():
+        return (
+            "<h1>提案書ファイルが見つかりません。</h1>"
+            "<p>管理者へお問い合わせください。</p>",
+            404
+        )
+
+    return html_path.read_text(encoding="utf-8")
+
+
+@app.get("/client/logout")
+def client_logout():
+    session.clear()
+    return redirect("/client/login")
 
 
 @app.route("/login", methods=["GET", "POST"])
