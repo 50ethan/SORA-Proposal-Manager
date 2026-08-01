@@ -5,3 +5,4 @@ proposal_manager.db
 .env
 app.py.bak
 app_old.py
+app.py.before-*
