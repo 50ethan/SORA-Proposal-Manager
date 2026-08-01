@@ -338,6 +338,61 @@ def generate_login_id(slug):
             number += 1
 
 
+
+def get_dashboard_data():
+    today = datetime.now().date().isoformat()
+
+    with get_db() as db:
+        total_clients = db.execute(
+            "SELECT COUNT(*) FROM clients"
+        ).fetchone()[0]
+
+        total_proposals = db.execute(
+            "SELECT COUNT(*) FROM proposals"
+        ).fetchone()[0]
+
+        today_views = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM proposal_views
+            WHERE substr(viewed_at, 1, 10) = ?
+            """,
+            (today,)
+        ).fetchone()[0]
+
+        unread_clients = db.execute(
+            """
+            SELECT COUNT(*)
+            FROM clients
+            LEFT JOIN proposal_views
+                ON proposal_views.client_id = clients.id
+            WHERE proposal_views.id IS NULL
+            """
+        ).fetchone()[0]
+
+        recent_views = db.execute(
+            """
+            SELECT
+                clients.company_name,
+                proposal_views.viewed_at,
+                proposal_views.ip_address
+            FROM proposal_views
+            JOIN clients
+                ON clients.id = proposal_views.client_id
+            ORDER BY proposal_views.id DESC
+            LIMIT 8
+            """
+        ).fetchall()
+
+    return {
+        "total_clients": total_clients,
+        "total_proposals": total_proposals,
+        "today_views": today_views,
+        "unread_clients": unread_clients,
+        "recent_views": recent_views,
+    }
+
+
 def get_clients():
     with get_db() as db:
         return db.execute(
@@ -397,6 +452,155 @@ HTML = """
         .header p {
             margin: 6px 0 0;
             color: #d1d5db;
+        }
+
+        .header-layout {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .product-subtitle {
+            font-size: 15px;
+            font-weight: 700;
+            color: #bfdbfe !important;
+        }
+
+        .product-catch {
+            font-size: 13px;
+            color: #94a3b8 !important;
+        }
+
+        .logout-button {
+            flex-shrink: 0;
+            padding: 10px 16px;
+            border: 1px solid rgba(255, 255, 255, .25);
+            border-radius: 9px;
+            color: white;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-height: 128px;
+            padding: 22px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, .06);
+        }
+
+        .warning-card {
+            border-color: #fed7aa;
+            background: #fffaf5;
+        }
+
+        .metric-icon {
+            display: grid;
+            place-items: center;
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+            border-radius: 12px;
+            background: #eff6ff;
+            font-size: 24px;
+        }
+
+        .metric-label {
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .metric-number {
+            color: #0f172a;
+            font-size: 34px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .metric-number span {
+            margin-left: 3px;
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .recent-card {
+            border-top: 4px solid #2563eb;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .section-kicker {
+            margin: 0 0 4px;
+            color: #2563eb;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .14em;
+        }
+
+        .activity-list {
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 15px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .activity-company {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .activity-dot {
+            width: 10px;
+            height: 10px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 5px #dcfce7;
+        }
+
+        .activity-ip {
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .activity-item time {
+            color: #64748b;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            padding: 28px 0;
+            color: #64748b;
+            text-align: center;
         }
 
         .wrap {
@@ -512,7 +716,22 @@ HTML = """
             margin: 0;
         }
 
+        @media (max-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         @media (max-width: 760px) {
+            .header-layout {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
             .grid {
                 grid-template-columns: 1fr;
             }
@@ -528,9 +747,20 @@ HTML = """
 
 <body>
     <header class="header">
-        <div class="header-inner">
-            <h1>SORA Proposal Manager</h1>
-            <p>顧客・提案書管理</p>
+        <div class="header-inner header-layout">
+            <div>
+                <h1>SORA Proposal Manager</h1>
+                <p class="product-subtitle">
+                    AI営業支援・提案書DXプラットフォーム
+                </p>
+                <p class="product-catch">
+                    提案から契約まで、AIが営業をサポート。
+                </p>
+            </div>
+
+            <a class="logout-button" href="/admin/logout">
+                ログアウト
+            </a>
         </div>
     </header>
 
@@ -542,6 +772,86 @@ HTML = """
                 {% endfor %}
             {% endif %}
         {% endwith %}
+
+
+        <section class="dashboard-grid">
+            <article class="metric-card">
+                <div class="metric-icon">👥</div>
+                <div>
+                    <div class="metric-label">登録顧客数</div>
+                    <div class="metric-number">
+                        {{ dashboard.total_clients }}
+                        <span>社</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="metric-card">
+                <div class="metric-icon">📄</div>
+                <div>
+                    <div class="metric-label">公開提案書数</div>
+                    <div class="metric-number">
+                        {{ dashboard.total_proposals }}
+                        <span>件</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="metric-card">
+                <div class="metric-icon">👀</div>
+                <div>
+                    <div class="metric-label">今日の閲覧数</div>
+                    <div class="metric-number">
+                        {{ dashboard.today_views }}
+                        <span>回</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="metric-card warning-card">
+                <div class="metric-icon">📬</div>
+                <div>
+                    <div class="metric-label">未閲覧顧客</div>
+                    <div class="metric-number">
+                        {{ dashboard.unread_clients }}
+                        <span>社</span>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="card recent-card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">RECENT ACTIVITY</p>
+                    <h2>最近の閲覧履歴</h2>
+                </div>
+            </div>
+
+            {% if dashboard.recent_views %}
+                <div class="activity-list">
+                    {% for view in dashboard.recent_views %}
+                        <div class="activity-item">
+                            <div class="activity-company">
+                                <div class="activity-dot"></div>
+                                <div>
+                                    <strong>{{ view.company_name }}</strong>
+                                    <div class="activity-ip">
+                                        IP：{{ view.ip_address or "取得なし" }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <time>{{ view.viewed_at }}</time>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    閲覧履歴はまだありません。
+                </div>
+            {% endif %}
+        </section>
 
         <section class="card">
             <h2>新規顧客登録</h2>
@@ -838,9 +1148,12 @@ def admin_logout():
 @app.get("/")
 @login_required
 def index():
+    dashboard = get_dashboard_data()
+
     return render_template_string(
         HTML,
-        clients=get_clients()
+        clients=get_clients(),
+        dashboard=dashboard
     )
 
 
