@@ -83,6 +83,101 @@
             </article>
         </section>
 
+
+        <section class="card sales-action-card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">SALES PRIORITY</p>
+                    <h2>今日の営業アクション</h2>
+                </div>
+            </div>
+
+            {% if dashboard.sales_actions %}
+                <div class="sales-action-list">
+                    {% for item in dashboard.sales_actions %}
+                        <article class="sales-action-item sales-level-{{ item.level }}">
+                            <div class="sales-action-main">
+                                <div>
+                                    <div class="sales-company">
+                                        {{ item.company_name }}
+                                    </div>
+
+                                    <div class="sales-stars">
+                                        {% for _ in range(item.stars) %}★{% endfor %}
+                                        {% for _ in range(5 - item.stars) %}☆{% endfor %}
+                                    </div>
+                                </div>
+
+                                <div class="sales-score">
+                                    {{ item.score }}
+                                    <span>点</span>
+                                </div>
+                            </div>
+
+                            <div class="sales-recommendation">
+                                {{ item.action }}
+                            </div>
+
+                            <div class="sales-reasons">
+                                {% if item.reasons %}
+                                    {% for reason in item.reasons %}
+                                        <span>{{ reason }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span>閲覧履歴なし</span>
+                                {% endif %}
+                            </div>
+
+                            {% if item.last_viewed_at %}
+                                <div class="sales-last-view">
+                                    最終閲覧：{{ item.last_viewed_at }}
+                                </div>
+                            {% endif %}
+
+                            <div class="sales-action-buttons">
+                                <form method="post"
+                                      action="/admin/sales-action/{{ item.client_id }}">
+                                    <input type="hidden"
+                                           name="action_type"
+                                           value="phone">
+                                    <button type="submit"
+                                            class="sales-button phone-button">
+                                        📞 電話した
+                                    </button>
+                                </form>
+
+                                <form method="post"
+                                      action="/admin/sales-action/{{ item.client_id }}">
+                                    <input type="hidden"
+                                           name="action_type"
+                                           value="email">
+                                    <button type="submit"
+                                            class="sales-button email-button">
+                                        📧 メールした
+                                    </button>
+                                </form>
+
+                                <form method="post"
+                                      action="/admin/sales-action/{{ item.client_id }}">
+                                    <input type="hidden"
+                                           name="action_type"
+                                           value="complete">
+                                    <button type="submit"
+                                            class="sales-button complete-button">
+                                        ✅ フォロー完了
+                                    </button>
+                                </form>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    営業アクションはまだありません。
+                </div>
+            {% endif %}
+        </section>
+
         <section class="card recent-card">
             <div class="section-heading">
                 <div>
