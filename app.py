@@ -88,6 +88,22 @@ def init_db():
             """
         )
 
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id INTEGER NOT NULL,
+                project_name TEXT NOT NULL,
+                amount INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT '未対応',
+                description TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (client_id) REFERENCES clients(id)
+            )
+            """
+        )
+
         db.commit()
 
 
