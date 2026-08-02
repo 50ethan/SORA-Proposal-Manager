@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SORA Proposal Manager</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            margin: 0;
+            background: #f4f6f8;
+            color: #1f2937;
+        }
+
+        .header {
+            background: #111827;
+            color: white;
+            padding: 22px 0;
+        }
+
+        .header-inner,
+        .wrap {
+            width: min(1100px, 92%);
+            margin: auto;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .header p {
+            margin: 6px 0 0;
+            color: #d1d5db;
+        }
+
+        .header-layout {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .product-subtitle {
+            font-size: 15px;
+            font-weight: 700;
+            color: #bfdbfe !important;
+        }
+
+        .product-catch {
+            font-size: 13px;
+            color: #94a3b8 !important;
+        }
+
+        .logout-button {
+            flex-shrink: 0;
+            padding: 10px 16px;
+            border: 1px solid rgba(255, 255, 255, .25);
+            border-radius: 9px;
+            color: white;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-height: 128px;
+            padding: 22px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, .06);
+        }
+
+        .warning-card {
+            border-color: #fed7aa;
+            background: #fffaf5;
+        }
+
+        .metric-icon {
+            display: grid;
+            place-items: center;
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+            border-radius: 12px;
+            background: #eff6ff;
+            font-size: 24px;
+        }
+
+        .metric-label {
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .metric-number {
+            color: #0f172a;
+            font-size: 34px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .metric-number span {
+            margin-left: 3px;
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .recent-card {
+            border-top: 4px solid #2563eb;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .section-kicker {
+            margin: 0 0 4px;
+            color: #2563eb;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .14em;
+        }
+
+        .activity-list {
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 15px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .activity-company {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .activity-dot {
+            width: 10px;
+            height: 10px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 5px #dcfce7;
+        }
+
+        .activity-ip {
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .activity-item time {
+            color: #64748b;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            padding: 28px 0;
+            color: #64748b;
+            text-align: center;
+        }
+
+        .wrap {
+            padding: 30px 0 60px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, .07);
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #c7cdd4;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button,
+        .button {
+            display: inline-block;
+            margin-top: 18px;
+            background: #111827;
+            color: white;
+            border: 0;
+            border-radius: 8px;
+            padding: 11px 18px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .danger {
+            background: #b91c1c;
+            margin: 0;
+            padding: 8px 12px;
+        }
+
+        .upload-button {
+            background: #0369a1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 13px 8px;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #f9fafb;
+        }
+
+        .flash {
+            padding: 16px;
+            border-radius: 9px;
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            margin-bottom: 18px;
+            white-space: pre-line;
+            font-weight: 600;
+        }
+
+        .note {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .status-ok {
+            color: #15803d;
+            font-weight: 700;
+        }
+
+        .status-none {
+            color: #9a3412;
+            font-weight: 700;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .actions form {
+            margin: 0;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 760px) {
+            .header-layout {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header-inner header-layout">
+            <div>
+                <h1>SORA Proposal Manager</h1>
+                <p class="product-subtitle">
+                    AI営業支援・提案書DXプラットフォーム
+                </p>
+                <p class="product-catch">
+                    提案から契約まで、AIが営業をサポート。
+                </p>
+            </div>
+
+            <a class="logout-button" href="/admin/logout">
+                ログアウト
+            </a>
+        </div>
+    </header>
+
+    <main class="wrap">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+
+        <section class="dashboard-grid">
+            <article class="metric-card">
+                <div class="metric-icon">👥</div>
+                <div>
+                    <div class="metric-label">登録顧客数</div>
+                    <div class="metric-number">
+                        {{ dashboard.total_clients }}
+                        <span>社</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="metric-card">
+                <div class="metric-icon">📄</div>
+                <div>
+                    <div class="metric-label">公開提案書数</div>
+                    <div class="metric-number">
+                        {{ dashboard.total_proposals }}
+                        <span>件</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="metric-card">
+                <div class="metric-icon">👀</div>
+                <div>
+                    <div class="metric-label">今日の閲覧数</div>
+                    <div class="metric-number">
+                        {{ dashboard.today_views }}
+                        <span>回</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="metric-card warning-card">
+                <div class="metric-icon">📬</div>
+                <div>
+                    <div class="metric-label">未閲覧顧客</div>
+                    <div class="metric-number">
+                        {{ dashboard.unread_clients }}
+                        <span>社</span>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="card recent-card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">RECENT ACTIVITY</p>
+                    <h2>最近の閲覧履歴</h2>
+                </div>
+            </div>
+
+            {% if dashboard.recent_views %}
+                <div class="activity-list">
+                    {% for view in dashboard.recent_views %}
+                        <div class="activity-item">
+                            <div class="activity-company">
+                                <div class="activity-dot"></div>
+                                <div>
+                                    <strong>{{ view.company_name }}</strong>
+                                    <div class="activity-ip">
+                                        IP：{{ view.ip_address or "取得なし" }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <time>{{ view.viewed_at }}</time>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    閲覧履歴はまだありません。
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>新規顧客登録</h2>
+
+            <form method="post" action="/admin/client/add">
+                <div class="grid">
+                    <div>
+                        <label>会社名</label>
+                        <input
+                            type="text"
+                            name="company_name"
+                            placeholder="株式会社タスク"
+                            required
+                        >
+                    </div>
+
+                    <div>
+                        <label>担当者名</label>
+                        <input
+                            type="text"
+                            name="contact_name"
+                            placeholder="大関 智春"
+                        >
+                    </div>
+
+                    <div>
+                        <label>メールアドレス</label>
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="example@example.com"
+                        >
+                    </div>
+
+                    <div>
+                        <label>URL用英数字</label>
+                        <input
+                            type="text"
+                            name="slug"
+                            placeholder="task"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <p class="note">
+                    登録すると、顧客用ログインIDとパスワードを自動発行します。
+                </p>
+
+                <button type="submit">顧客を登録する</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>提案書アップロード</h2>
+
+            {% if clients %}
+                <form
+                    method="post"
+                    action="/admin/upload"
+                    enctype="multipart/form-data"
+                >
+                    <label>顧客</label>
+                    <select name="client_id" required>
+                        <option value="">選択してください</option>
+
+                        {% for client in clients %}
+                            <option value="{{ client.id }}">
+                                {{ client.company_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <label style="margin-top:16px;">HTMLファイル</label>
+                    <input
+                        type="file"
+                        name="file"
+                        accept=".html,.htm"
+                        required
+                    >
+
+                    <button class="upload-button" type="submit">
+                        提案書をアップロード
+                    </button>
+                </form>
+            {% else %}
+                <p class="note">
+                    先に顧客を登録してください。
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>顧客一覧</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>会社名</th>
+                        <th>担当者</th>
+                        <th>ログインID</th>
+                        <th>提案書</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for client in clients %}
+                        <tr>
+                            <td>
+                                <strong>{{ client.company_name }}</strong><br>
+                                <span class="note">{{ client.email or "" }}</span>
+                            </td>
+
+                            <td>{{ client.contact_name or "未登録" }}</td>
+
+                            <td>
+                                <code>{{ client.login_id }}</code>
+                            </td>
+
+                            <td>
+                                {% if client.proposal_updated_at %}
+                                    <span class="status-ok">公開中</span><br>
+
+                                    <a
+                                        href="https://proposal.sora-nextai.com/{{ client.slug }}/"
+                                        target="_blank"
+                                    >
+                                        提案書を見る
+                                    </a>
+                                {% else %}
+                                    <span class="status-none">未登録</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <div class="actions">
+                                    <form
+                                        method="post"
+                                        action="/admin/client/{{ client.id }}/reset-password"
+                                    >
+                                        <button type="submit">
+                                            PW再発行
+                                        </button>
+                                    </form>
+
+                                    <form
+                                        method="post"
+                                        action="/admin/client/{{ client.id }}/delete"
+                                        onsubmit="return confirm('顧客と提案書を削除しますか？');"
+                                    >
+                                        <button class="danger" type="submit">
+                                            削除
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5">顧客はまだ登録されていません。</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>
