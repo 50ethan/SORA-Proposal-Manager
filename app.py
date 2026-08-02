@@ -310,6 +310,91 @@ def get_clients():
 
 
 
+
+@app.get("/client/<int:client_id>/timeline")
+@login_required
+def client_timeline(client_id):
+    with get_db() as db:
+        client = db.execute(
+            "SELECT * FROM clients WHERE id = ?",
+            (client_id,)
+        ).fetchone()
+
+        if not client:
+            flash("対象顧客が見つかりません。")
+            return admin_redirect()
+
+        view_rows = db.execute(
+            """
+            SELECT
+                viewed_at AS created_at,
+                ip_address,
+                user_agent
+            FROM proposal_views
+            WHERE client_id = ?
+            """,
+            (client_id,)
+        ).fetchall()
+
+        action_rows = db.execute(
+            """
+            SELECT
+                created_at,
+                action_type,
+                note
+            FROM sales_action_logs
+            WHERE client_id = ?
+            """,
+            (client_id,)
+        ).fetchall()
+
+    timeline = []
+
+    for row in view_rows:
+        detail_parts = []
+
+        if row["ip_address"]:
+            detail_parts.append(f'IP: {row["ip_address"]}')
+
+        if row["user_agent"]:
+            detail_parts.append(row["user_agent"][:80])
+
+        timeline.append({
+            "type": "view",
+            "title": "提案書を閲覧",
+            "detail": " / ".join(detail_parts),
+            "created_at": row["created_at"],
+        })
+
+    action_labels = {
+        "phone": "電話した",
+        "email": "メールした",
+        "complete": "フォロー完了",
+    }
+
+    for row in action_rows:
+        timeline.append({
+            "type": row["action_type"],
+            "title": action_labels.get(
+                row["action_type"],
+                row["note"] or "営業対応"
+            ),
+            "detail": row["note"] or "",
+            "created_at": row["created_at"],
+        })
+
+    timeline.sort(
+        key=lambda item: item["created_at"],
+        reverse=True
+    )
+
+    return render_template(
+        "client_timeline.html",
+        client=client,
+        timeline=timeline
+    )
+
+
 @app.post("/sales-action/<int:client_id>")
 @login_required
 def save_sales_action(client_id):
