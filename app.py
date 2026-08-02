@@ -81,9 +81,11 @@ def init_db():
             CREATE TABLE IF NOT EXISTS proposals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 client_id INTEGER NOT NULL,
+                project_id INTEGER,
                 html_path TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
-                FOREIGN KEY (client_id) REFERENCES clients(id)
+                FOREIGN KEY (client_id) REFERENCES clients(id),
+                FOREIGN KEY (project_id) REFERENCES projects(id)
             )
             """
         )
@@ -304,6 +306,22 @@ def get_dashboard_data():
         "recent_views": recent_views,
         "sales_actions": sales_actions[:5],
     }
+
+
+
+def get_projects():
+    with get_db() as db:
+        return db.execute(
+            """
+            SELECT
+                projects.*,
+                clients.company_name
+            FROM projects
+            JOIN clients
+                ON clients.id = projects.client_id
+            ORDER BY projects.id DESC
+            """
+        ).fetchall()
 
 
 def get_clients():
@@ -589,8 +607,233 @@ def index():
     return render_template(
         "dashboard.html",
         clients=get_clients(),
+        projects=get_projects(),
         dashboard=dashboard
     )
+
+
+
+
+@app.get("/project/<int:project_id>")
+@login_required
+def project_detail(project_id):
+    with get_db() as db:
+        project = db.execute(
+            """
+            SELECT
+                projects.*,
+                clients.company_name,
+                clients.slug
+            FROM projects
+            JOIN clients
+                ON clients.id = projects.client_id
+            WHERE projects.id = ?
+            """,
+            (project_id,)
+        ).fetchone()
+
+        proposal = db.execute(
+            """
+            SELECT *
+            FROM proposals
+            WHERE project_id = ?
+            """,
+            (project_id,)
+        ).fetchone()
+
+    if not project:
+        flash("対象案件が見つかりません。")
+        return admin_redirect()
+
+    return render_template(
+        "project_detail.html",
+        project=project,
+        proposal=proposal
+    )
+
+
+
+@app.post("/project/<int:project_id>/proposal/upload")
+@login_required
+def upload_project_proposal(project_id):
+    uploaded = request.files.get("file")
+
+    with get_db() as db:
+        project = db.execute(
+            """
+            SELECT
+                projects.*,
+                clients.slug,
+                clients.company_name
+            FROM projects
+            JOIN clients
+                ON clients.id = projects.client_id
+            WHERE projects.id = ?
+            """,
+            (project_id,)
+        ).fetchone()
+
+    if not project:
+        flash("対象案件が見つかりません。")
+        return admin_redirect()
+
+    if not uploaded or not uploaded.filename:
+        flash("HTMLファイルを選択してください。")
+        return redirect(f"/admin/project/{project_id}")
+
+    if not allowed_file(uploaded.filename):
+        flash("HTMLファイルだけアップロードできます。")
+        return redirect(f"/admin/project/{project_id}")
+
+    target_dir = (
+        PROPOSAL_ROOT
+        / project["slug"]
+        / f'project-{project_id}'
+    )
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    target_file = target_dir / "index.html"
+    uploaded.save(target_file)
+
+    os.chown(target_dir, 33, 33)
+    os.chown(target_file, 33, 33)
+    os.chmod(target_dir, 0o755)
+    os.chmod(target_file, 0o644)
+
+    now = datetime.now().isoformat(timespec="seconds")
+
+    with get_db() as db:
+        existing = db.execute(
+            "SELECT id FROM proposals WHERE project_id = ?",
+            (project_id,)
+        ).fetchone()
+
+        if existing:
+            db.execute(
+                """
+                UPDATE proposals
+                SET
+                    html_path = ?,
+                    updated_at = ?
+                WHERE project_id = ?
+                """,
+                (
+                    str(target_file),
+                    now,
+                    project_id
+                )
+            )
+        else:
+            db.execute(
+                """
+                INSERT INTO proposals (
+                    client_id,
+                    project_id,
+                    html_path,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    project["client_id"],
+                    project_id,
+                    str(target_file),
+                    now
+                )
+            )
+
+        db.commit()
+
+    flash(
+        f'{project["company_name"]}：'
+        f'案件「{project["project_name"]}」の提案書を公開しました。'
+    )
+    return redirect(f"/admin/project/{project_id}")
+
+
+@app.post("/project/add")
+@login_required
+def add_project():
+    client_id = request.form.get("client_id", "").strip()
+    project_name = request.form.get("project_name", "").strip()
+    amount_raw = request.form.get("amount", "").strip()
+    status = request.form.get("status", "未対応").strip()
+    description = request.form.get("description", "").strip()
+
+    allowed_statuses = {
+        "未対応",
+        "提案中",
+        "商談中",
+        "見積提出",
+        "受注",
+        "失注",
+        "保留",
+    }
+
+    if not client_id.isdigit():
+        flash("顧客を選択してください。")
+        return admin_redirect()
+
+    if not project_name:
+        flash("案件名を入力してください。")
+        return admin_redirect()
+
+    if status not in allowed_statuses:
+        flash("営業ステータスが不正です。")
+        return admin_redirect()
+
+    try:
+        amount = int(amount_raw.replace(",", "")) if amount_raw else 0
+    except ValueError:
+        flash("予定金額は数字で入力してください。")
+        return admin_redirect()
+
+    if amount < 0:
+        flash("予定金額は0円以上で入力してください。")
+        return admin_redirect()
+
+    now = datetime.now().isoformat(timespec="seconds")
+
+    with get_db() as db:
+        client = db.execute(
+            "SELECT id, company_name FROM clients WHERE id = ?",
+            (int(client_id),)
+        ).fetchone()
+
+        if not client:
+            flash("対象顧客が見つかりません。")
+            return admin_redirect()
+
+        db.execute(
+            """
+            INSERT INTO projects (
+                client_id,
+                project_name,
+                amount,
+                status,
+                description,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(client_id),
+                project_name,
+                amount,
+                status,
+                description,
+                now,
+                now,
+            )
+        )
+        db.commit()
+
+    flash(
+        f'{client["company_name"]}：'
+        f'案件「{project_name}」を登録しました。'
+    )
+    return admin_redirect()
 
 
 @app.post("/client/add")

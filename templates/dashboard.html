@@ -264,6 +264,135 @@
         </section>
 
         <section class="card">
+            <h2>案件登録</h2>
+
+            {% if clients %}
+                <form method="post" action="/admin/project/add">
+                    <div class="grid">
+                        <div>
+                            <label>顧客</label>
+                            <select name="client_id" required>
+                                <option value="">選択してください</option>
+
+                                {% for client in clients %}
+                                    <option value="{{ client.id }}">
+                                        {{ client.company_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label>案件名</label>
+                            <input
+                                type="text"
+                                name="project_name"
+                                placeholder="AI導入支援"
+                                required
+                            >
+                        </div>
+
+                        <div>
+                            <label>予定金額</label>
+                            <input
+                                type="text"
+                                name="amount"
+                                inputmode="numeric"
+                                placeholder="1500000"
+                            >
+                        </div>
+
+                        <div>
+                            <label>営業ステータス</label>
+                            <select name="status" required>
+                                <option value="未対応">未対応</option>
+                                <option value="提案中">提案中</option>
+                                <option value="商談中">商談中</option>
+                                <option value="見積提出">見積提出</option>
+                                <option value="受注">受注</option>
+                                <option value="失注">失注</option>
+                                <option value="保留">保留</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label>案件メモ</label>
+                    <textarea
+                        name="description"
+                        rows="4"
+                        placeholder="案件の内容、課題、提案予定など"
+                    ></textarea>
+
+                    <button type="submit">案件を登録する</button>
+                </form>
+            {% else %}
+                <p class="note">
+                    先に顧客を登録してください。
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">PROJECTS</p>
+                    <h2>案件一覧</h2>
+                </div>
+            </div>
+
+            {% if projects %}
+                <div class="project-list">
+                    {% for project in projects %}
+                        <article class="project-item">
+                            <div class="project-main">
+                                <div>
+                                    <div class="project-company">
+                                        {{ project.company_name }}
+                                    </div>
+
+                                    <h3 class="project-name">
+                                        {{ project.project_name }}
+                                    </h3>
+
+                                    {% if project.description %}
+                                        <p class="project-description">
+                                            {{ project.description }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+
+                                <div class="project-amount">
+                                    ¥{{ "{:,}".format(project.amount or 0) }}
+                                </div>
+                            </div>
+
+                            <div class="project-footer">
+                                <span class="project-status status-{{ project.status }}">
+                                    {{ project.status }}
+                                </span>
+
+                                <span class="project-date">
+                                    登録日：{{ project.created_at }}
+                                </span>
+
+                                <a
+                                    class="secondary-button"
+                                    href="/admin/project/{{ project.id }}"
+                                >
+                                    詳細
+                                </a>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    案件はまだ登録されていません。
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="card">
             <h2>提案書アップロード</h2>
 
             {% if clients %}

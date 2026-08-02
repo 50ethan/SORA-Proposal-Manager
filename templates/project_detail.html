@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ project.project_name }} | SORA Proposal Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner header-layout">
+            <div>
+                <h1>{{ project.project_name }}</h1>
+                <p class="product-subtitle">{{ project.company_name }}</p>
+                <p class="product-catch">案件詳細</p>
+            </div>
+
+            <a class="logout-button" href="/admin/">
+                ダッシュボードへ戻る
+            </a>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <section class="card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">PROJECT OVERVIEW</p>
+                    <h2>案件概要</h2>
+                </div>
+            </div>
+
+            <div class="project-detail-grid">
+                <div>
+                    <span>顧客</span>
+                    <strong>{{ project.company_name }}</strong>
+                </div>
+
+                <div>
+                    <span>案件名</span>
+                    <strong>{{ project.project_name }}</strong>
+                </div>
+
+                <div>
+                    <span>予定金額</span>
+                    <strong>¥{{ "{:,}".format(project.amount or 0) }}</strong>
+                </div>
+
+                <div>
+                    <span>営業ステータス</span>
+                    <strong>{{ project.status }}</strong>
+                </div>
+
+                <div>
+                    <span>登録日</span>
+                    <strong>{{ project.created_at }}</strong>
+                </div>
+
+                <div>
+                    <span>更新日</span>
+                    <strong>{{ project.updated_at }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>案件メモ</h2>
+
+            {% if project.description %}
+                <p class="project-detail-description">
+                    {{ project.description }}
+                </p>
+            {% else %}
+                <div class="empty-state">
+                    案件メモはありません。
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">DOCUMENTS</p>
+                    <h2>案件資料</h2>
+                </div>
+            </div>
+
+            <div class="project-document-grid">
+                <article class="project-document-card">
+                    <div class="project-document-icon">📄</div>
+                    <strong>HTML提案書</strong>
+                    <p>案件ごとの提案内容をWeb形式で公開します。</p>
+
+                    <div class="project-document-actions">
+                        <button type="button" class="secondary-button" disabled>
+                            開く
+                        </button>
+                        <button type="button" disabled>
+                            アップロード
+                        </button>
+                    </div>
+                </article>
+
+                <article class="project-document-card">
+                    <div class="project-document-icon">🏢</div>
+                    <strong>HTML会社案内</strong>
+                    <p>会社情報・実績・サービスをWeb形式で表示します。</p>
+
+                    <div class="project-document-actions">
+                        <button type="button" class="secondary-button" disabled>
+                            開く
+                        </button>
+                        <button type="button" disabled>
+                            アップロード
+                        </button>
+                    </div>
+                </article>
+
+                <article class="project-document-card">
+                    <div class="project-document-icon">💰</div>
+                    <strong>PDF見積書</strong>
+                    <p>正式な見積書をPDFで登録・共有します。</p>
+
+                    <div class="project-document-actions">
+                        <button type="button" class="secondary-button" disabled>
+                            開く
+                        </button>
+                        <button type="button" disabled>
+                            アップロード
+                        </button>
+                    </div>
+                </article>
+
+                <article class="project-document-card">
+                    <div class="project-document-icon">📜</div>
+                    <strong>PDF契約書</strong>
+                    <p>契約書をPDFで登録・共有します。</p>
+
+                    <div class="project-document-actions">
+                        <button type="button" class="secondary-button" disabled>
+                            開く
+                        </button>
+                        <button type="button" disabled>
+                            アップロード
+                        </button>
+                    </div>
+                </article>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
