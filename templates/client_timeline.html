@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ client.company_name }} | 営業タイムライン</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner header-layout">
+            <div>
+                <h1>{{ client.company_name }}</h1>
+                <p class="product-subtitle">営業タイムライン</p>
+                <p class="product-catch">
+                    閲覧履歴と営業対応を時系列で確認できます。
+                </p>
+            </div>
+
+            <a class="logout-button" href="/admin/">
+                ダッシュボードへ戻る
+            </a>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <section class="card">
+            <h2>顧客情報</h2>
+
+            <div class="timeline-client-info">
+                <div>
+                    <span>担当者</span>
+                    <strong>{{ client.contact_name or "未登録" }}</strong>
+                </div>
+
+                <div>
+                    <span>メール</span>
+                    <strong>{{ client.email or "未登録" }}</strong>
+                </div>
+
+                <div>
+                    <span>ログインID</span>
+                    <strong>{{ client.login_id }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">SALES TIMELINE</p>
+                    <h2>営業履歴</h2>
+                </div>
+            </div>
+
+            {% if timeline %}
+                <div class="timeline-list">
+                    {% for item in timeline %}
+                        <article class="timeline-item timeline-{{ item.type }}">
+                            <div class="timeline-marker"></div>
+
+                            <div class="timeline-content">
+                                <div class="timeline-head">
+                                    <strong>{{ item.title }}</strong>
+                                    <time>{{ item.created_at }}</time>
+                                </div>
+
+                                {% if item.detail %}
+                                    <p>{{ item.detail }}</p>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    営業履歴はまだありません。
+                </div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
