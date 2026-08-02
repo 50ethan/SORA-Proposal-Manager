@@ -323,3 +323,144 @@
                 white-space: nowrap;
             }
         }
+
+.sales-action-card {
+    border-top: 4px solid #f59e0b;
+}
+
+.sales-action-list {
+    display: grid;
+    gap: 14px;
+}
+
+.sales-action-item {
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.sales-action-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.sales-company {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.sales-stars {
+    margin-top: 5px;
+    color: #f59e0b;
+    letter-spacing: .08em;
+}
+
+.sales-score {
+    font-size: 32px;
+    font-weight: 900;
+    color: #0f172a;
+}
+
+.sales-score span {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.sales-recommendation {
+    margin-top: 14px;
+    padding: 11px 13px;
+    border-radius: 9px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 800;
+}
+
+.sales-reasons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 13px;
+}
+
+.sales-reasons span {
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.sales-last-view {
+    margin-top: 12px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.sales-level-high {
+    border-left: 5px solid #dc2626;
+}
+
+.sales-level-medium {
+    border-left: 5px solid #f59e0b;
+}
+
+.sales-level-low {
+    border-left: 5px solid #2563eb;
+}
+
+.sales-level-none {
+    border-left: 5px solid #94a3b8;
+}
+
+@media (max-width: 760px) {
+    .sales-action-main {
+        align-items: flex-start;
+    }
+
+    .sales-score {
+        font-size: 26px;
+    }
+}
+
+.sales-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.sales-action-buttons form {
+    margin: 0;
+}
+
+.sales-button {
+    margin: 0;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.phone-button {
+    background: #2563eb;
+}
+
+.email-button {
+    background: #7c3aed;
+}
+
+.complete-button {
+    background: #15803d;
+}
+
+.sales-button:hover {
+    opacity: .88;
+}

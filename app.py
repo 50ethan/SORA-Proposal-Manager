@@ -1,5 +1,5 @@
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, request, redirect, render_template, render_template_string, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -171,12 +171,122 @@ def get_dashboard_data():
             """
         ).fetchall()
 
+        sales_rows = db.execute(
+            """
+            SELECT
+                clients.id,
+                clients.company_name,
+                proposals.id AS proposal_id,
+                COUNT(proposal_views.id) AS view_count,
+                MAX(proposal_views.viewed_at) AS last_viewed_at,
+                SUM(
+                    CASE
+                        WHEN substr(proposal_views.viewed_at, 1, 10) = ?
+                        THEN 1
+                        ELSE 0
+                    END
+                ) AS today_view_count
+            FROM clients
+            LEFT JOIN proposals
+                ON proposals.client_id = clients.id
+            LEFT JOIN proposal_views
+                ON proposal_views.client_id = clients.id
+            GROUP BY
+                clients.id,
+                clients.company_name,
+                proposals.id
+            """,
+            (today,)
+        ).fetchall()
+
+    now = datetime.now()
+    sales_actions = []
+
+    for row in sales_rows:
+        score = 0
+        reasons = []
+
+        if row["proposal_id"]:
+            score += 10
+            reasons.append("提案書を公開済み")
+
+        view_count = row["view_count"] or 0
+        today_view_count = row["today_view_count"] or 0
+        last_viewed_at = row["last_viewed_at"]
+
+        if today_view_count > 0:
+            score += 30
+            reasons.append(f"本日{today_view_count}回閲覧")
+
+        if view_count >= 5:
+            score += 30
+            reasons.append(f"累計{view_count}回閲覧")
+        elif view_count >= 3:
+            score += 20
+            reasons.append(f"累計{view_count}回閲覧")
+        elif view_count >= 1:
+            score += 10
+            reasons.append(f"累計{view_count}回閲覧")
+
+        if last_viewed_at:
+            try:
+                last_viewed = datetime.fromisoformat(last_viewed_at)
+                elapsed = now - last_viewed
+
+                if elapsed <= timedelta(hours=24):
+                    score += 25
+                    reasons.append("24時間以内に閲覧")
+                elif elapsed <= timedelta(days=3):
+                    score += 15
+                    reasons.append("3日以内に閲覧")
+                elif elapsed <= timedelta(days=7):
+                    score += 5
+                    reasons.append("7日以内に閲覧")
+            except ValueError:
+                pass
+
+        score = min(score, 100)
+
+        if score >= 75:
+            action = "今日、電話でフォロー"
+            level = "high"
+        elif score >= 50:
+            action = "フォローメールを送信"
+            level = "medium"
+        elif score >= 25:
+            action = "数日以内に状況確認"
+            level = "low"
+        else:
+            action = "提案書の閲覧を案内"
+            level = "none"
+
+        sales_actions.append({
+            "client_id": row["id"],
+            "company_name": row["company_name"],
+            "score": score,
+            "stars": min(5, max(1, (score + 19) // 20)),
+            "view_count": view_count,
+            "last_viewed_at": last_viewed_at,
+            "action": action,
+            "level": level,
+            "reasons": reasons,
+        })
+
+    sales_actions.sort(
+        key=lambda item: (
+            item["score"],
+            item["last_viewed_at"] or ""
+        ),
+        reverse=True
+    )
+
     return {
         "total_clients": total_clients,
         "total_proposals": total_proposals,
         "today_views": today_views,
         "unread_clients": unread_clients,
         "recent_views": recent_views,
+        "sales_actions": sales_actions[:5],
     }
 
 
@@ -197,6 +307,58 @@ def get_clients():
 
 
 
+
+
+
+@app.post("/sales-action/<int:client_id>")
+@login_required
+def save_sales_action(client_id):
+    action_type = request.form.get("action_type", "").strip()
+
+    allowed_actions = {
+        "phone": "電話した",
+        "email": "メールした",
+        "complete": "フォロー完了",
+    }
+
+    if action_type not in allowed_actions:
+        flash("不正な営業アクションです。")
+        return admin_redirect()
+
+    with get_db() as db:
+        client = db.execute(
+            "SELECT id, company_name FROM clients WHERE id = ?",
+            (client_id,)
+        ).fetchone()
+
+        if not client:
+            flash("対象顧客が見つかりません。")
+            return admin_redirect()
+
+        db.execute(
+            """
+            INSERT INTO sales_action_logs (
+                client_id,
+                action_type,
+                note,
+                created_at
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                client_id,
+                action_type,
+                allowed_actions[action_type],
+                datetime.now().isoformat(timespec="seconds")
+            )
+        )
+        db.commit()
+
+    flash(
+        f'{client["company_name"]}：'
+        f'{allowed_actions[action_type]}を記録しました。'
+    )
+    return admin_redirect()
 
 
 @app.route("/client/login", methods=["GET", "POST"])
