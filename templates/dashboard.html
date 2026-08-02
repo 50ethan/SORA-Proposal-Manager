@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SORA Proposal Manager</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <header class="header">
+        <div class="header-inner header-layout">
+            <div>
+                <h1>SORA Proposal Manager</h1>
+                <p class="product-subtitle">
+                    AI営業支援・提案書DXプラットフォーム
+                </p>
+                <p class="product-catch">
+                    提案から契約まで、AIが営業をサポート。
+                </p>
+            </div>
+
+            <a class="logout-button" href="/admin/logout">
+                ログアウト
+            </a>
+        </div>
+    </header>
+
+    <main class="wrap">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+
+        <section class="dashboard-grid">
+            <article class="metric-card">
+                <div class="metric-icon">👥</div>
+                <div>
+                    <div class="metric-label">登録顧客数</div>
+                    <div class="metric-number">
+                        {{ dashboard.total_clients }}
+                        <span>社</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="metric-card">
+                <div class="metric-icon">📄</div>
+                <div>
+                    <div class="metric-label">公開提案書数</div>
+                    <div class="metric-number">
+                        {{ dashboard.total_proposals }}
+                        <span>件</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="metric-card">
+                <div class="metric-icon">👀</div>
+                <div>
+                    <div class="metric-label">今日の閲覧数</div>
+                    <div class="metric-number">
+                        {{ dashboard.today_views }}
+                        <span>回</span>
+                    </div>
+                </div>
+            </article>
+
+            <article class="metric-card warning-card">
+                <div class="metric-icon">📬</div>
+                <div>
+                    <div class="metric-label">未閲覧顧客</div>
+                    <div class="metric-number">
+                        {{ dashboard.unread_clients }}
+                        <span>社</span>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="card recent-card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">RECENT ACTIVITY</p>
+                    <h2>最近の閲覧履歴</h2>
+                </div>
+            </div>
+
+            {% if dashboard.recent_views %}
+                <div class="activity-list">
+                    {% for view in dashboard.recent_views %}
+                        <div class="activity-item">
+                            <div class="activity-company">
+                                <div class="activity-dot"></div>
+                                <div>
+                                    <strong>{{ view.company_name }}</strong>
+                                    <div class="activity-ip">
+                                        IP：{{ view.ip_address or "取得なし" }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <time>{{ view.viewed_at }}</time>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    閲覧履歴はまだありません。
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>新規顧客登録</h2>
+
+            <form method="post" action="/admin/client/add">
+                <div class="grid">
+                    <div>
+                        <label>会社名</label>
+                        <input
+                            type="text"
+                            name="company_name"
+                            placeholder="株式会社タスク"
+                            required
+                        >
+                    </div>
+
+                    <div>
+                        <label>担当者名</label>
+                        <input
+                            type="text"
+                            name="contact_name"
+                            placeholder="大関 智春"
+                        >
+                    </div>
+
+                    <div>
+                        <label>メールアドレス</label>
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="example@example.com"
+                        >
+                    </div>
+
+                    <div>
+                        <label>URL用英数字</label>
+                        <input
+                            type="text"
+                            name="slug"
+                            placeholder="task"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <p class="note">
+                    登録すると、顧客用ログインIDとパスワードを自動発行します。
+                </p>
+
+                <button type="submit">顧客を登録する</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>提案書アップロード</h2>
+
+            {% if clients %}
+                <form
+                    method="post"
+                    action="/admin/upload"
+                    enctype="multipart/form-data"
+                >
+                    <label>顧客</label>
+                    <select name="client_id" required>
+                        <option value="">選択してください</option>
+
+                        {% for client in clients %}
+                            <option value="{{ client.id }}">
+                                {{ client.company_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <label style="margin-top:16px;">HTMLファイル</label>
+                    <input
+                        type="file"
+                        name="file"
+                        accept=".html,.htm"
+                        required
+                    >
+
+                    <button class="upload-button" type="submit">
+                        提案書をアップロード
+                    </button>
+                </form>
+            {% else %}
+                <p class="note">
+                    先に顧客を登録してください。
+                </p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>顧客一覧</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>会社名</th>
+                        <th>担当者</th>
+                        <th>ログインID</th>
+                        <th>提案書</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for client in clients %}
+                        <tr>
+                            <td>
+                                <strong>{{ client.company_name }}</strong><br>
+                                <span class="note">{{ client.email or "" }}</span>
+                            </td>
+
+                            <td>{{ client.contact_name or "未登録" }}</td>
+
+                            <td>
+                                <code>{{ client.login_id }}</code>
+                            </td>
+
+                            <td>
+                                {% if client.proposal_updated_at %}
+                                    <span class="status-ok">公開中</span><br>
+
+                                    <a
+                                        href="https://proposal.sora-nextai.com/{{ client.slug }}/"
+                                        target="_blank"
+                                    >
+                                        提案書を見る
+                                    </a>
+                                {% else %}
+                                    <span class="status-none">未登録</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <div class="actions">
+                                    <form
+                                        method="post"
+                                        action="/admin/client/{{ client.id }}/reset-password"
+                                    >
+                                        <button type="submit">
+                                            PW再発行
+                                        </button>
+                                    </form>
+
+                                    <form
+                                        method="post"
+                                        action="/admin/client/{{ client.id }}/delete"
+                                        onsubmit="return confirm('顧客と提案書を削除しますか？');"
+                                    >
+                                        <button class="danger" type="submit">
+                                            削除
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5">顧客はまだ登録されていません。</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>
