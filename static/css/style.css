@@ -653,3 +653,88 @@ textarea {
     cursor: not-allowed;
     opacity: .45;
 }
+
+.registered-document-list {
+    display: grid;
+    gap: 12px;
+}
+
+.registered-document-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.registered-document-item strong {
+    display: block;
+    margin-top: 5px;
+    color: #0f172a;
+}
+
+.registered-document-item p {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.document-type-label {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #e0e7ff;
+    color: #3730a3;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.registered-document-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.document-mime {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.registered-document-actions button {
+    width: auto;
+    margin: 0;
+}
+
+.registered-document-actions button:disabled {
+    cursor: not-allowed;
+    opacity: .45;
+}
+
+@media (max-width: 760px) {
+    .registered-document-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+.project-document-upload {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.project-document-upload input[type="file"] {
+    width: 100%;
+    padding: 9px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 9px;
+    background: #f8fafc;
+}
+
+.project-document-upload button {
+    width: 100%;
+    margin: 0;
+}

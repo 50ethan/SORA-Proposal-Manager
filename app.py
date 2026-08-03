@@ -1,7 +1,7 @@
 from pathlib import Path
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Flask, request, redirect, render_template, render_template_string, flash, session
+from flask import Flask, request, redirect, render_template, render_template_string, flash, session, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import re
@@ -106,6 +106,22 @@ def init_db():
             """
         )
 
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                document_type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                mime_type TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (project_id) REFERENCES projects(id)
+            )
+            """
+        )
+
         db.commit()
 
 
@@ -118,6 +134,166 @@ def allowed_file(filename: str) -> bool:
         "." in filename
         and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
     )
+
+
+
+def save_project_document(
+    project_id,
+    uploaded,
+    document_type,
+    title,
+    target_filename,
+    allowed_extensions,
+    sync_legacy_proposal=False,
+):
+    with get_db() as db:
+        project = db.execute(
+            """
+            SELECT
+                projects.*,
+                clients.slug,
+                clients.company_name
+            FROM projects
+            JOIN clients
+                ON clients.id = projects.client_id
+            WHERE projects.id = ?
+            """,
+            (project_id,)
+        ).fetchone()
+
+    if not project:
+        return None, "対象案件が見つかりません。"
+
+    if not uploaded or not uploaded.filename:
+        return project, "ファイルを選択してください。"
+
+    if "." not in uploaded.filename:
+        return project, "ファイル形式を確認してください。"
+
+    extension = uploaded.filename.rsplit(".", 1)[1].lower()
+
+    if extension not in allowed_extensions:
+        return project, "対応していないファイル形式です。"
+
+    target_dir = (
+        PROPOSAL_ROOT
+        / project["slug"]
+        / f"project-{project_id}"
+    )
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    target_file = target_dir / target_filename
+    uploaded.save(target_file)
+
+    os.chown(target_dir, 33, 33)
+    os.chown(target_file, 33, 33)
+    os.chmod(target_dir, 0o755)
+    os.chmod(target_file, 0o644)
+
+    now = datetime.now().isoformat(timespec="seconds")
+
+    with get_db() as db:
+        existing_document = db.execute(
+            """
+            SELECT id
+            FROM documents
+            WHERE project_id = ?
+              AND document_type = ?
+            """,
+            (project_id, document_type)
+        ).fetchone()
+
+        if existing_document:
+            db.execute(
+                """
+                UPDATE documents
+                SET
+                    title = ?,
+                    file_path = ?,
+                    mime_type = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    title,
+                    str(target_file),
+                    "text/html",
+                    now,
+                    existing_document["id"],
+                )
+            )
+        else:
+            db.execute(
+                """
+                INSERT INTO documents (
+                    project_id,
+                    document_type,
+                    title,
+                    file_path,
+                    mime_type,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    project_id,
+                    document_type,
+                    title,
+                    str(target_file),
+                    "text/html",
+                    now,
+                    now,
+                )
+            )
+
+        if sync_legacy_proposal:
+            existing_proposal = db.execute(
+                """
+                SELECT id
+                FROM proposals
+                WHERE project_id = ?
+                """,
+                (project_id,)
+            ).fetchone()
+
+            if existing_proposal:
+                db.execute(
+                    """
+                    UPDATE proposals
+                    SET
+                        html_path = ?,
+                        updated_at = ?
+                    WHERE project_id = ?
+                    """,
+                    (
+                        str(target_file),
+                        now,
+                        project_id,
+                    )
+                )
+            else:
+                db.execute(
+                    """
+                    INSERT INTO proposals (
+                        client_id,
+                        project_id,
+                        html_path,
+                        updated_at
+                    )
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        project["client_id"],
+                        project_id,
+                        str(target_file),
+                        now,
+                    )
+                )
+
+        db.commit()
+
+    return project, None
 
 
 def generate_password(length=10):
@@ -641,6 +817,21 @@ def project_detail(project_id):
             (project_id,)
         ).fetchone()
 
+        documents = db.execute(
+            """
+            SELECT *
+            FROM documents
+            WHERE project_id = ?
+            ORDER BY id DESC
+            """,
+            (project_id,)
+        ).fetchall()
+
+    documents_by_type = {
+        document["document_type"]: document
+        for document in documents
+    }
+
     if not project:
         flash("対象案件が見つかりません。")
         return admin_redirect()
@@ -648,9 +839,53 @@ def project_detail(project_id):
     return render_template(
         "project_detail.html",
         project=project,
-        proposal=proposal
+        proposal=proposal,
+        documents=documents,
+        documents_by_type=documents_by_type
     )
 
+
+
+
+@app.get("/project/<int:project_id>/document/<int:document_id>/open")
+@login_required
+def open_project_document(project_id, document_id):
+    with get_db() as db:
+        document = db.execute(
+            """
+            SELECT *
+            FROM documents
+            WHERE id = ?
+              AND project_id = ?
+            """,
+            (
+                document_id,
+                project_id
+            )
+        ).fetchone()
+
+    if not document:
+        flash("対象資料が見つかりません。")
+        return redirect(f"/admin/project/{project_id}")
+
+    file_path = Path(document["file_path"])
+
+    if not file_path.is_file():
+        flash("資料ファイルが見つかりません。")
+        return redirect(f"/admin/project/{project_id}")
+
+    response = send_file(
+        file_path,
+        mimetype=document["mime_type"],
+        as_attachment=False
+    )
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Content-Security-Policy"] = (
+        "sandbox allow-forms allow-scripts"
+    )
+
+    return response
 
 
 @app.post("/project/<int:project_id>/proposal/upload")
@@ -658,95 +893,56 @@ def project_detail(project_id):
 def upload_project_proposal(project_id):
     uploaded = request.files.get("file")
 
-    with get_db() as db:
-        project = db.execute(
-            """
-            SELECT
-                projects.*,
-                clients.slug,
-                clients.company_name
-            FROM projects
-            JOIN clients
-                ON clients.id = projects.client_id
-            WHERE projects.id = ?
-            """,
-            (project_id,)
-        ).fetchone()
-
-    if not project:
-        flash("対象案件が見つかりません。")
-        return admin_redirect()
-
-    if not uploaded or not uploaded.filename:
-        flash("HTMLファイルを選択してください。")
-        return redirect(f"/admin/project/{project_id}")
-
-    if not allowed_file(uploaded.filename):
-        flash("HTMLファイルだけアップロードできます。")
-        return redirect(f"/admin/project/{project_id}")
-
-    target_dir = (
-        PROPOSAL_ROOT
-        / project["slug"]
-        / f'project-{project_id}'
+    project, error = save_project_document(
+        project_id=project_id,
+        uploaded=uploaded,
+        document_type="proposal",
+        title="HTML提案書",
+        target_filename="index.html",
+        allowed_extensions={"html", "htm"},
+        sync_legacy_proposal=True,
     )
-    target_dir.mkdir(parents=True, exist_ok=True)
 
-    target_file = target_dir / "index.html"
-    uploaded.save(target_file)
+    if error:
+        flash(error)
 
-    os.chown(target_dir, 33, 33)
-    os.chown(target_file, 33, 33)
-    os.chmod(target_dir, 0o755)
-    os.chmod(target_file, 0o644)
+        if project is None:
+            return admin_redirect()
 
-    now = datetime.now().isoformat(timespec="seconds")
-
-    with get_db() as db:
-        existing = db.execute(
-            "SELECT id FROM proposals WHERE project_id = ?",
-            (project_id,)
-        ).fetchone()
-
-        if existing:
-            db.execute(
-                """
-                UPDATE proposals
-                SET
-                    html_path = ?,
-                    updated_at = ?
-                WHERE project_id = ?
-                """,
-                (
-                    str(target_file),
-                    now,
-                    project_id
-                )
-            )
-        else:
-            db.execute(
-                """
-                INSERT INTO proposals (
-                    client_id,
-                    project_id,
-                    html_path,
-                    updated_at
-                )
-                VALUES (?, ?, ?, ?)
-                """,
-                (
-                    project["client_id"],
-                    project_id,
-                    str(target_file),
-                    now
-                )
-            )
-
-        db.commit()
+        return redirect(f"/admin/project/{project_id}")
 
     flash(
         f'{project["company_name"]}：'
         f'案件「{project["project_name"]}」の提案書を公開しました。'
+    )
+    return redirect(f"/admin/project/{project_id}")
+
+
+@app.post("/project/<int:project_id>/company/upload")
+@login_required
+def upload_project_company(project_id):
+    uploaded = request.files.get("file")
+
+    project, error = save_project_document(
+        project_id=project_id,
+        uploaded=uploaded,
+        document_type="company",
+        title="HTML会社案内",
+        target_filename="company.html",
+        allowed_extensions={"html", "htm"},
+    )
+
+    if error:
+        flash(error)
+
+        if project is None:
+            return admin_redirect()
+
+        return redirect(f"/admin/project/{project_id}")
+
+    flash(
+        f'{project["company_name"]}：'
+        f'案件「{project["project_name"]}」の会社案内を公開しました。'
     )
     return redirect(f"/admin/project/{project_id}")
 
