@@ -91,14 +91,50 @@
                     <strong>HTML提案書</strong>
                     <p>案件ごとの提案内容をWeb形式で公開します。</p>
 
+                    {% set proposal_document = documents_by_type.get("proposal") %}
+
                     <div class="project-document-actions">
-                        <button type="button" class="secondary-button" disabled>
-                            開く
-                        </button>
-                        <button type="button" disabled>
-                            アップロード
-                        </button>
+                        {% if proposal_document %}
+                            <a
+                                class="secondary-button"
+                                href="/admin/project/{{ project.id }}/document/{{ proposal_document.id }}/open"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                開く
+                            </a>
+                        {% else %}
+                            <button
+                                type="button"
+                                class="secondary-button"
+                                disabled
+                            >
+                                開く
+                            </button>
+                        {% endif %}
                     </div>
+
+                    <form
+                        class="project-document-upload"
+                        method="post"
+                        action="/admin/project/{{ project.id }}/proposal/upload"
+                        enctype="multipart/form-data"
+                    >
+                        <input
+                            type="file"
+                            name="file"
+                            accept=".html,.htm,text/html"
+                            required
+                        >
+
+                        <button type="submit">
+                            {% if proposal_document %}
+                                差し替える
+                            {% else %}
+                                アップロード
+                            {% endif %}
+                        </button>
+                    </form>
                 </article>
 
                 <article class="project-document-card">
@@ -106,14 +142,50 @@
                     <strong>HTML会社案内</strong>
                     <p>会社情報・実績・サービスをWeb形式で表示します。</p>
 
+                    {% set company_document = documents_by_type.get("company") %}
+
                     <div class="project-document-actions">
-                        <button type="button" class="secondary-button" disabled>
-                            開く
-                        </button>
-                        <button type="button" disabled>
-                            アップロード
-                        </button>
+                        {% if company_document %}
+                            <a
+                                class="secondary-button"
+                                href="/admin/project/{{ project.id }}/document/{{ company_document.id }}/open"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                開く
+                            </a>
+                        {% else %}
+                            <button
+                                type="button"
+                                class="secondary-button"
+                                disabled
+                            >
+                                開く
+                            </button>
+                        {% endif %}
                     </div>
+
+                    <form
+                        class="project-document-upload"
+                        method="post"
+                        action="/admin/project/{{ project.id }}/company/upload"
+                        enctype="multipart/form-data"
+                    >
+                        <input
+                            type="file"
+                            name="file"
+                            accept=".html,.htm,text/html"
+                            required
+                        >
+
+                        <button type="submit">
+                            {% if company_document %}
+                                差し替える
+                            {% else %}
+                                アップロード
+                            {% endif %}
+                        </button>
+                    </form>
                 </article>
 
                 <article class="project-document-card">
@@ -146,6 +218,64 @@
                     </div>
                 </article>
             </div>
+        </section>
+
+        <section class="card">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">REGISTERED DOCUMENTS</p>
+                    <h2>登録済み資料</h2>
+                </div>
+            </div>
+
+            {% if documents %}
+                <div class="registered-document-list">
+                    {% for document in documents %}
+                        <article class="registered-document-item">
+                            <div>
+                                <span class="document-type-label">
+                                    {% if document.document_type == "proposal" %}
+                                        HTML提案書
+                                    {% elif document.document_type == "company" %}
+                                        HTML会社案内
+                                    {% elif document.document_type == "quotation" %}
+                                        PDF見積書
+                                    {% elif document.document_type == "contract" %}
+                                        PDF契約書
+                                    {% else %}
+                                        その他資料
+                                    {% endif %}
+                                </span>
+
+                                <strong>{{ document.title }}</strong>
+
+                                <p>
+                                    更新日時：{{ document.updated_at }}
+                                </p>
+                            </div>
+
+                            <div class="registered-document-actions">
+                                <span class="document-mime">
+                                    {{ document.mime_type }}
+                                </span>
+
+                                <a
+                                    class="secondary-button"
+                                    href="/admin/project/{{ project.id }}/document/{{ document.id }}/open"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    開く
+                                </a>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    この案件には、まだ資料が登録されていません。
+                </div>
+            {% endif %}
         </section>
     </main>
 </body>
