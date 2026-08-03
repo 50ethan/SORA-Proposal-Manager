@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, request, redirect, render_template, render_template_string, flash, session, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
+import magic
 import os
 import re
 import secrets
@@ -176,6 +177,28 @@ def save_project_document(
 
     if extension not in allowed_extensions:
         return project, "対応していないファイル形式です。"
+
+    file_head = uploaded.stream.read(8192)
+    uploaded.stream.seek(0)
+
+    detected_mime = magic.from_buffer(
+        file_head,
+        mime=True
+    )
+
+    allowed_mime_types = {mime_type}
+
+    if mime_type == "text/html":
+        allowed_mime_types.update({
+            "text/plain",
+            "application/xhtml+xml",
+        })
+
+    if detected_mime not in allowed_mime_types:
+        return (
+            project,
+            "ファイルの内容と種類が一致しません。"
+        )
 
     target_dir = (
         PROPOSAL_ROOT
