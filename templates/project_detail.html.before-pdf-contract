@@ -245,51 +245,14 @@
                     <strong>PDF契約書</strong>
                     <p>契約書をPDFで登録・共有します。</p>
 
-                    {% set contract_document =
-                        documents_by_type.get("contract") %}
-
                     <div class="project-document-actions">
-                        {% if contract_document %}
-                            <a
-                                class="secondary-button"
-                                href="/admin/project/{{ project.id }}/document/{{ contract_document.id }}/open"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                開く
-                            </a>
-                        {% else %}
-                            <button
-                                type="button"
-                                class="secondary-button"
-                                disabled
-                            >
-                                開く
-                            </button>
-                        {% endif %}
-                    </div>
-
-                    <form
-                        class="project-document-upload"
-                        method="post"
-                        action="/admin/project/{{ project.id }}/contract/upload"
-                        enctype="multipart/form-data"
-                    >
-                        <input
-                            type="file"
-                            name="file"
-                            accept=".pdf,application/pdf"
-                            required
-                        >
-
-                        <button type="submit">
-                            {% if contract_document %}
-                                差し替える
-                            {% else %}
-                                アップロード
-                            {% endif %}
+                        <button type="button" class="secondary-button" disabled>
+                            開く
                         </button>
-                    </form>
+                        <button type="button" disabled>
+                            アップロード
+                        </button>
+                    </div>
                 </article>
             </div>
         </section>

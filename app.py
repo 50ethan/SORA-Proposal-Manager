@@ -1005,6 +1005,37 @@ def upload_project_quotation(project_id):
     return redirect(f"/admin/project/{project_id}")
 
 
+
+@app.post("/project/<int:project_id>/contract/upload")
+@login_required
+def upload_project_contract(project_id):
+    uploaded = request.files.get("file")
+
+    project, error = save_project_document(
+        project_id=project_id,
+        uploaded=uploaded,
+        document_type="contract",
+        title="PDF契約書",
+        target_filename="contract.pdf",
+        allowed_extensions={"pdf"},
+        mime_type="application/pdf",
+    )
+
+    if error:
+        flash(error)
+
+        if project is None:
+            return admin_redirect()
+
+        return redirect(f"/admin/project/{project_id}")
+
+    flash(
+        f'{project["company_name"]}：'
+        f'案件「{project["project_name"]}」の契約書を登録しました。'
+    )
+    return redirect(f"/admin/project/{project_id}")
+
+
 @app.post("/project/add")
 @login_required
 def add_project():
