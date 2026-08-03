@@ -208,7 +208,24 @@ def save_project_document(
     target_dir.mkdir(parents=True, exist_ok=True)
 
     target_file = target_dir / target_filename
-    uploaded.save(target_file)
+
+    try:
+        uploaded.save(target_file)
+    except PermissionError:
+        return (
+            project,
+            "保存先へ書き込む権限がありません。"
+        )
+    except OSError:
+        return (
+            project,
+            "ファイル保存中にエラーが発生しました。"
+        )
+    except Exception:
+        return (
+            project,
+            "予期しないエラーが発生しました。"
+        )
 
     os.chown(target_dir, 33, 33)
     os.chown(target_file, 33, 33)
