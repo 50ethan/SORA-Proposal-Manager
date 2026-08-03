@@ -193,14 +193,51 @@
                     <strong>PDF見積書</strong>
                     <p>正式な見積書をPDFで登録・共有します。</p>
 
+                    {% set quotation_document =
+                        documents_by_type.get("quotation") %}
+
                     <div class="project-document-actions">
-                        <button type="button" class="secondary-button" disabled>
-                            開く
-                        </button>
-                        <button type="button" disabled>
-                            アップロード
-                        </button>
+                        {% if quotation_document %}
+                            <a
+                                class="secondary-button"
+                                href="/admin/project/{{ project.id }}/document/{{ quotation_document.id }}/open"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                開く
+                            </a>
+                        {% else %}
+                            <button
+                                type="button"
+                                class="secondary-button"
+                                disabled
+                            >
+                                開く
+                            </button>
+                        {% endif %}
                     </div>
+
+                    <form
+                        class="project-document-upload"
+                        method="post"
+                        action="/admin/project/{{ project.id }}/quotation/upload"
+                        enctype="multipart/form-data"
+                    >
+                        <input
+                            type="file"
+                            name="file"
+                            accept=".pdf,application/pdf"
+                            required
+                        >
+
+                        <button type="submit">
+                            {% if quotation_document %}
+                                差し替える
+                            {% else %}
+                                アップロード
+                            {% endif %}
+                        </button>
+                    </form>
                 </article>
 
                 <article class="project-document-card">
