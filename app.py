@@ -12,6 +12,7 @@ import string
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
 
 BASE_DIR = Path("/opt/proposal-manager")
 DATABASE_PATH = BASE_DIR / "proposal_manager.db"
