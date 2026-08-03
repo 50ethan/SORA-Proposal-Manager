@@ -144,6 +144,7 @@ def save_project_document(
     title,
     target_filename,
     allowed_extensions,
+    mime_type,
     sync_legacy_proposal=False,
 ):
     with get_db() as db:
@@ -217,7 +218,7 @@ def save_project_document(
                 (
                     title,
                     str(target_file),
-                    "text/html",
+                    mime_type,
                     now,
                     existing_document["id"],
                 )
@@ -241,7 +242,7 @@ def save_project_document(
                     document_type,
                     title,
                     str(target_file),
-                    "text/html",
+                    mime_type,
                     now,
                     now,
                 )
@@ -900,6 +901,7 @@ def upload_project_proposal(project_id):
         title="HTML提案書",
         target_filename="index.html",
         allowed_extensions={"html", "htm"},
+        mime_type="text/html",
         sync_legacy_proposal=True,
     )
 
@@ -930,6 +932,7 @@ def upload_project_company(project_id):
         title="HTML会社案内",
         target_filename="company.html",
         allowed_extensions={"html", "htm"},
+        mime_type="text/html",
     )
 
     if error:
@@ -943,6 +946,37 @@ def upload_project_company(project_id):
     flash(
         f'{project["company_name"]}：'
         f'案件「{project["project_name"]}」の会社案内を公開しました。'
+    )
+    return redirect(f"/admin/project/{project_id}")
+
+
+
+@app.post("/project/<int:project_id>/quotation/upload")
+@login_required
+def upload_project_quotation(project_id):
+    uploaded = request.files.get("file")
+
+    project, error = save_project_document(
+        project_id=project_id,
+        uploaded=uploaded,
+        document_type="quotation",
+        title="PDF見積書",
+        target_filename="quotation.pdf",
+        allowed_extensions={"pdf"},
+        mime_type="application/pdf",
+    )
+
+    if error:
+        flash(error)
+
+        if project is None:
+            return admin_redirect()
+
+        return redirect(f"/admin/project/{project_id}")
+
+    flash(
+        f'{project["company_name"]}：'
+        f'案件「{project["project_name"]}」の見積書を登録しました。'
     )
     return redirect(f"/admin/project/{project_id}")
 
